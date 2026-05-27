@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FormaPilote — Gestion Centre de Formation</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="formapilote.css">
+</head>
+<body>
+
+<!-- ── PAGE LOGIN ── -->
+<div class="login-page" id="login-page" style="display:none">
+  <div class="login-card">
+    <div class="login-logo">Forma<span>Pilote</span></div>
+    <div class="login-sub">CENTRE DE FORMATION · ESPACE ADMIN</div>
+    <div class="login-error" id="login-error"></div>
+    <div class="form-group">
+      <label class="form-label">Email professionnel</label>
+      <input type="email" class="form-control" id="login-email" placeholder="admin@centre.fr" autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Mot de passe</label>
+      <input type="password" class="form-control" id="login-pwd" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn btn-primary" style="width:100%;padding:12px;font-size:14px;margin-top:4px" id="login-btn" onclick="doLogin()">
+      Se connecter
+    </button>
+  </div>
+</div>
+
+<!-- ── APPLICATION PRINCIPALE ── -->
+<div class="app" id="app" style="display:none">
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="logo">Forma<span>Pilote</span></div>
+      <div class="sub">Admin · v3.0</div>
+    </div>
+    <nav class="nav">
+      <div class="nav-section">Navigation</div>
+      <button class="nav-item active" onclick="showPage('dashboard')"><span class="icon">📊</span> Tableau de bord</button>
+      <button class="nav-item" onclick="showPage('sessions')"><span class="icon">📅</span> Créneaux</button>
+      <button class="nav-item" onclick="showPage('participants')"><span class="icon">👥</span> Participants</button>
+      <button class="nav-item" onclick="showPage('paiements')"><span class="icon">💶</span> Encaissements</button>
+      <div class="nav-section">Outils</div>
+      <button class="nav-item" onclick="showPage('inscription')"><span class="icon">✍️</span> Formulaire public</button>
+      <button class="nav-item" onclick="showPage('import')"><span class="icon">⬆️</span> Import / Export</button>
+    </nav>
+    <div class="config-zone">
+      <button class="config-btn" onclick="exportJSON()">⬇️ Exporter JSON</button>
+      <button class="config-btn" onclick="exportCSVAll()">📊 Exporter CSV</button>
+    </div>
+    <div class="sidebar-user">
+      <div class="sidebar-user-dot"></div>
+      <span id="sidebar-email" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</span>
+      <button class="btn btn-sm btn-danger" style="margin-left:auto;padding:4px 8px;font-size:10px" onclick="doLogout()">↩</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="page-title">Tableau de bord</div>
+      <div class="topbar-right">
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" class="search-input" id="global-search" placeholder="Rechercher… (⌘F)" oninput="handleSearch(this.value)" autocomplete="off">
+        </div>
+        <span class="save-indicator" id="save-indicator">✓ Sauvegardé</span>
+        <div class="realtime-badge"><div class="realtime-dot"></div>Live</div>
+        <button class="btn btn-ghost btn-sm" onclick="loadAllData().then(()=>renderPage(state.currentPage))" title="Actualiser">↻</button>
+      </div>
+    </div>
+    <div class="content" id="content">
+      <div class="page-loader"><div class="spinner"></div><span>Chargement…</span></div>
+    </div>
+  </main>
+</div>
+
+<!-- ── MODAL ── -->
+<div class="modal-overlay" id="modal" onclick="handleModalClick(event)">
+  <div class="modal" id="modal-inner"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="formapilote.js"></script>
+</body>
+</html>
