@@ -10,7 +10,7 @@ const SUPABASE_URL = "https://eqadaccfdonpxhkftyql.supabase.co";
 const SUPABASE_KEY = "sb_publishable_sNWsK6Nir7AsTdpgF3_mpA_kPut_EuT";
 const PROXY_URL    = "https://script.google.com/macros/s/AKfycbz4hraC2q3Rhr9pqktce9QihGimY9OC9d1sfroWBFJi7beDKnKZcC8i8rpc788iz8m05w/exec";
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ── STATE (cache local) ─────────────────────────────────────────────
 const state = {
