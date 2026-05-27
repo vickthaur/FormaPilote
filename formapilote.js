@@ -8,9 +8,9 @@
 // ── CONFIG ──────────────────────────────────────────────────────────
 const SUPABASE_URL = "https://eqadaccfdonpxhkftyql.supabase.co";
 const SUPABASE_KEY = "sb_publishable_sNWsK6Nir7AsTdpgF3_mpA_kPut_EuT";
-const PROXY_URL    = "https://script.google.com/macros/s/TON_ID_ICI/exec";
+const PROXY_URL    = "https://script.google.com/macros/s/AKfycbyzyJk_k8sFvU8TJjq8MKmaz2UntsuVfOucbw5-YcSDF0cBzw_o3iKYzx1yoxxezyuh5Q/exec";
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ── STATE (cache local) ─────────────────────────────────────────────
 const state = {
@@ -25,7 +25,7 @@ const state = {
 // AUTH
 // ====================================================================
 async function init() {
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session } } = await db.auth.getSession();
   if (!session) { showLoginPage(); return; }
   state.user = session.user;
   document.getElementById('sidebar-email').textContent = session.user.email;
@@ -48,7 +48,7 @@ async function doLogin() {
   const errEl = document.getElementById('login-error');
   errEl.style.display = 'none';
   btn.textContent = 'Connexion…'; btn.disabled = true;
-  const { error } = await supabase.auth.signInWithPassword({ email, password: pwd });
+  const { error } = await db.auth.signInWithPassword({ email, password: pwd });
   if (error) {
     errEl.textContent = 'Identifiants incorrects. Vérifiez votre email et mot de passe.';
     errEl.style.display = 'block';
@@ -60,7 +60,7 @@ async function doLogin() {
 }
 
 async function doLogout() {
-  await supabase.auth.signOut();
+  await db.auth.signOut();
   state.sessions = []; state.participants = []; state.paiements = [];
   showLoginPage();
 }
@@ -79,17 +79,17 @@ async function loadAllData() {
 }
 
 async function loadSessions() {
-  const { data, error } = await supabase.from('sessions').select('*').order('date');
+  const { data, error } = await db.from('sessions').select('*').order('date');
   if (!error) state.sessions = data || [];
 }
 
 async function loadParticipants() {
-  const { data, error } = await supabase.from('participants').select('*').order('created_at', { ascending: false });
+  const { data, error } = await db.from('participants').select('*').order('created_at', { ascending: false });
   if (!error) state.participants = data || [];
 }
 
 async function loadPaiements() {
-  const { data, error } = await supabase.from('paiements').select('*').order('created_at', { ascending: false });
+  const { data, error } = await db.from('paiements').select('*').order('created_at', { ascending: false });
   if (!error) state.paiements = data || [];
 }
 
@@ -102,7 +102,7 @@ function setLoading(v) {
 // REALTIME
 // ====================================================================
 function initRealtime() {
-  supabase.channel('formapilote-live')
+  db.channel('formapilote-live')
     .on('postgres_changes', { event:'*', schema:'public', table:'sessions' }, async () => {
       await loadSessions(); renderPage(state.currentPage); showToast('Sessions mises à jour', 'info');
     })
@@ -191,14 +191,14 @@ function makeStatusDropdown(id, current, configMap, onChangeFn) {
 async function changePaiementStatut(id, statut) {
   const updates = { statut };
   if (statut === 'Encaissé') updates.date_paiement = new Date().toISOString().split('T')[0];
-  const { error } = await supabase.from('paiements').update(updates).eq('id', id);
+  const { error } = await db.from('paiements').update(updates).eq('id', id);
   if (!error) { await loadPaiements(); showToast('Statut mis à jour ✓'); renderPage('paiements'); }
   else showToast('Erreur : ' + error.message, 'error');
   closeAllDropdowns();
 }
 
 async function changeParticipantStatut(id, statut) {
-  const { error } = await supabase.from('participants').update({ statut }).eq('id', id);
+  const { error } = await db.from('participants').update({ statut }).eq('id', id);
   if (!error) { await loadParticipants(); showToast('Statut mis à jour ✓'); renderPage('participants'); }
   else showToast('Erreur : ' + error.message, 'error');
   closeAllDropdowns();
@@ -354,12 +354,12 @@ async function saveSession(id) {
   };
   if (id) {
     payload.statut = val('f-statut');
-    const { error } = await supabase.from('sessions').update(payload).eq('id',id);
+    const { error } = await db.from('sessions').update(payload).eq('id',id);
     if (error) { showToast('Erreur : '+error.message,'error'); return; }
     showToast('Créneau mis à jour ✓');
   } else {
     payload.statut = 'Ouvert'; payload.inscrits = 0;
-    const { error } = await supabase.from('sessions').insert(payload);
+    const { error } = await db.from('sessions').insert(payload);
     if (error) { showToast('Erreur : '+error.message,'error'); return; }
     showToast('Créneau créé ✓');
   }
@@ -370,7 +370,7 @@ async function duplicateSession(id) {
   const s = state.sessions.find(x=>x.id===id);
   if (!s) return;
   const { id:_, created_at:__, ...fields } = s;
-  const { error } = await supabase.from('sessions').insert({ ...fields, inscrits:0, statut:'Ouvert', date:'', user_id:state.user?.id });
+  const { error } = await db.from('sessions').insert({ ...fields, inscrits:0, statut:'Ouvert', date:'', user_id:state.user?.id });
   if (!error) { await loadSessions(); showToast('Dupliqué — mettez la date à jour','info'); renderPage('sessions'); }
 }
 
@@ -380,7 +380,7 @@ async function deleteSession(id) {
   const nbPart = state.participants.filter(p=>p.session_id===id).length;
   const msg = nbPart>0 ? `Supprimer "${s.titre}" ?\n⚠️ ${nbPart} participant(s) lié(s) seront détachés.` : `Supprimer "${s.titre}" ?`;
   if (!confirm(msg)) return;
-  const { error } = await supabase.from('sessions').delete().eq('id',id);
+  const { error } = await db.from('sessions').delete().eq('id',id);
   if (!error) { await loadAllData(); showToast('Créneau supprimé'); renderPage('sessions'); }
   else showToast('Erreur : '+error.message,'error');
 }
@@ -500,10 +500,10 @@ async function saveParticipant() {
   if (!prenom||!email) { showToast('Prénom et email requis','error'); return; }
   const sess = state.sessions.find(s=>s.id===session_id);
   const payload = { prenom, nom, email, telephone:val('p-tel'), session_id:session_id||null, session_titre:sess?.titre||null, notes:val('p-notes'), statut:'En attente', date_inscription:new Date().toISOString().split('T')[0], user_id:state.user?.id };
-  const { data: newPart, error } = await supabase.from('participants').insert(payload).select().single();
+  const { data: newPart, error } = await db.from('participants').insert(payload).select().single();
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   if (sess) {
-    await supabase.from('paiements').insert({ participant_id:newPart.id, participant_nom:`${prenom} ${nom}`, session_id:session_id, session_titre:sess.titre, montant:sess.prix||0, statut:'En attente', mode:'Virement', user_id:state.user?.id });
+    await db.from('paiements').insert({ participant_id:newPart.id, participant_nom:`${prenom} ${nom}`, session_id:session_id, session_titre:sess.titre, montant:sess.prix||0, statut:'En attente', mode:'Virement', user_id:state.user?.id });
   }
   await loadAllData(); showToast('Participant inscrit ✓'); closeModal(); renderPage('participants');
 }
@@ -512,7 +512,7 @@ async function updateParticipant(id) {
   const prenom=val('p-prenom'),nom=val('p-nom'),email=val('p-email'),session_id=val('p-session');
   if (!prenom||!email) { showToast('Prénom et email requis','error'); return; }
   const sess = state.sessions.find(s=>s.id===session_id);
-  const { error } = await supabase.from('participants').update({ prenom, nom, email, telephone:val('p-tel'), session_id:session_id||null, session_titre:sess?.titre||null, statut:val('p-statut'), notes:val('p-notes') }).eq('id',id);
+  const { error } = await db.from('participants').update({ prenom, nom, email, telephone:val('p-tel'), session_id:session_id||null, session_titre:sess?.titre||null, statut:val('p-statut'), notes:val('p-notes') }).eq('id',id);
   if (!error) { await loadAllData(); showToast('Mis à jour ✓'); closeModal(); renderPage('participants'); }
   else showToast('Erreur : '+error.message,'error');
 }
@@ -520,7 +520,7 @@ async function updateParticipant(id) {
 async function deleteParticipant(id) {
   const p = state.participants.find(x=>x.id===id);
   if (!p||!confirm(`Supprimer ${p.prenom} ${p.nom} ?`)) return;
-  const { error } = await supabase.from('participants').delete().eq('id',id);
+  const { error } = await db.from('participants').delete().eq('id',id);
   if (!error) { await loadAllData(); showToast('Participant supprimé'); renderPage('participants'); }
   else showToast('Erreur : '+error.message,'error');
 }
@@ -612,7 +612,7 @@ function editPaiementModal(id) {
 async function savePaiement(id) {
   const statut=val('pai-statut');
   const updates = { montant:parseInt(val('pai-montant'))||0, mode:val('pai-mode'), date_paiement:val('pai-date')||null, statut };
-  const { error } = await supabase.from('paiements').update(updates).eq('id',id);
+  const { error } = await db.from('paiements').update(updates).eq('id',id);
   if (!error) { await loadPaiements(); showToast('Paiement mis à jour ✓'); closeModal(); renderPage('paiements'); }
   else showToast('Erreur : '+error.message,'error');
 }
@@ -639,7 +639,7 @@ function openPaiementModal() {
 async function createPaiement() {
   const pid=val('pai-part'); if (!pid) { showToast('Participant requis','error'); return; }
   const p = state.participants.find(x=>x.id===pid);
-  const { error } = await supabase.from('paiements').insert({ participant_id:pid, participant_nom:`${p?.prenom||''} ${p?.nom||''}`.trim(), session_id:p?.session_id||null, session_titre:p?.session_titre||null, montant:parseInt(val('pai-montant'))||0, mode:val('pai-mode'), date_paiement:val('pai-date')||null, statut:val('pai-statut'), user_id:state.user?.id });
+  const { error } = await db.from('paiements').insert({ participant_id:pid, participant_nom:`${p?.prenom||''} ${p?.nom||''}`.trim(), session_id:p?.session_id||null, session_titre:p?.session_titre||null, montant:parseInt(val('pai-montant'))||0, mode:val('pai-mode'), date_paiement:val('pai-date')||null, statut:val('pai-statut'), user_id:state.user?.id });
   if (!error) { await loadPaiements(); showToast('Paiement créé ✓'); closeModal(); renderPage('paiements'); }
   else showToast('Erreur : '+error.message,'error');
 }
@@ -691,9 +691,9 @@ async function submitInscription() {
   const prenom=val('pub-prenom'),nom=val('pub-nom'),email=val('pub-email'),session_id=val('pub-session');
   if (!prenom||!email||!session_id) { showToast('Champs obligatoires manquants','error'); return; }
   const sess = state.sessions.find(s=>s.id===session_id);
-  const { data:newPart, error } = await supabase.from('participants').insert({ prenom,nom,email,telephone:val('pub-tel'),session_id,session_titre:sess?.titre,notes:val('pub-msg'),statut:'En attente',date_inscription:new Date().toISOString().split('T')[0],user_id:state.user?.id }).select().single();
+  const { data:newPart, error } = await db.from('participants').insert({ prenom,nom,email,telephone:val('pub-tel'),session_id,session_titre:sess?.titre,notes:val('pub-msg'),statut:'En attente',date_inscription:new Date().toISOString().split('T')[0],user_id:state.user?.id }).select().single();
   if (!error&&sess) {
-    await supabase.from('paiements').insert({ participant_id:newPart.id,participant_nom:`${prenom} ${nom}`,session_id,session_titre:sess.titre,montant:sess.prix||0,statut:'En attente',mode:'Virement',user_id:state.user?.id });
+    await db.from('paiements').insert({ participant_id:newPart.id,participant_nom:`${prenom} ${nom}`,session_id,session_titre:sess.titre,montant:sess.prix||0,statut:'En attente',mode:'Virement',user_id:state.user?.id });
   }
   await loadAllData(); showToast('Inscription enregistrée ✓'); renderPage('inscription');
 }
@@ -738,8 +738,8 @@ async function importFile(file) {
       const s=data.sessions||[], p=data.participants||[], pay=data.paiements||[];
       if (!confirm(`Importer ${s.length} sessions, ${p.length} participants, ${pay.length} paiements dans Supabase ?`)) return;
       showToast('Import en cours…','info');
-      if (s.length) { const rows=s.map(x=>({...x.fields,user_id:state.user?.id})); await supabase.from('sessions').insert(rows); }
-      if (p.length) { const rows=p.map(x=>({...x.fields,nom:x.fields.Nom,prenom:x.fields.Prenom,email:x.fields.Email,telephone:x.fields.Telephone,session_titre:x.fields.Session,statut:x.fields.Statut,date_inscription:x.fields.DateInscription,notes:x.fields.Notes||'',user_id:state.user?.id})); await supabase.from('participants').insert(rows); }
+      if (s.length) { const rows=s.map(x=>({...x.fields,user_id:state.user?.id})); await db.from('sessions').insert(rows); }
+      if (p.length) { const rows=p.map(x=>({...x.fields,nom:x.fields.Nom,prenom:x.fields.Prenom,email:x.fields.Email,telephone:x.fields.Telephone,session_titre:x.fields.Session,statut:x.fields.Statut,date_inscription:x.fields.DateInscription,notes:x.fields.Notes||'',user_id:state.user?.id})); await db.from('participants').insert(rows); }
       await loadAllData(); showToast('Import réussi ✓'); showPage('dashboard');
     } catch(err) { showToast('Fichier invalide : '+err.message,'error'); }
   };
@@ -819,3 +819,9 @@ function showSaveIndicator() {
 
 // ── INIT ──
 init();
+
+// Sécurité : afficher le login si init() plante
+window.onerror = function() {
+  document.getElementById('login-page').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+};
